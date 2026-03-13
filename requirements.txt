@@ -1,0 +1,9 @@
+django
+djangorestframework
+google-generativeai
+pinecone
+pillow
+python-dotenv
+django-cors-headers
+gunicorn
+pandas

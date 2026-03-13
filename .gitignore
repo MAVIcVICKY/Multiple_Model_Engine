@@ -1,0 +1,27 @@
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Django
+db.sqlite3
+db.sqlite3-journal
+
+# Data and Media (Ignored because the Flickr8k dataset is very large, >1GB)
+data/
+media/images/
+*.zip
+
+# OS
+.DS_Store
+Thumbs.db
