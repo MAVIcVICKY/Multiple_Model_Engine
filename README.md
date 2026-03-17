@@ -4,6 +4,8 @@ Hey there! This is a project I built to explore the power of **Multimodal AI**. 
 
 Technically, it bridges the gap between vision and language using **Google Gemini's** embedding models and **Pinecone's** vector storage.
 
+visit -DEMO_imgs for Demo!!!!!
+
 ---
 
 ## 🛠️ The Tech Behind It
