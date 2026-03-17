@@ -59,4 +59,31 @@ I added a few helper commands to make life easier:
 
 ---
 
-Feel free to reach out if you have any questions about the implementation!
+
+## 🏗️ Complete System Flow
+
+```mermaid
+flowchart LR
+    A[User] --> B{Input Type}
+
+    B -->|Text Query| C[Text Embedding]
+    B -->|Image Upload| D[Image Embedding]
+
+    C --> E[Unified Vector Space]
+    D --> E
+
+    subgraph Ingestion Pipeline
+        F[Flickr8k Dataset] --> G[Images + Captions]
+        G --> H[Embedding Generation]
+        H --> I[Vector Storage]
+    end
+
+    I --> J[Pinecone DB]
+
+    E --> J
+
+    J --> K[Similarity Search]
+    K --> L[Top Results]
+
+    L --> M[Django Backend]
+    M --> N[Frontend UI]
