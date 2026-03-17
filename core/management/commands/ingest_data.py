@@ -20,7 +20,7 @@ from django.core.management.base import BaseCommand
 from django.conf import settings
 
 from core.embed import embed_image, embed_text
-from core.pinecone_db import store_vector
+from core.pinecone_db import store_vectors
 
 
 class Command(BaseCommand):
@@ -92,51 +92,48 @@ class Command(BaseCommand):
         # ── Step 3: Ingest each image ─────────────────────────────────
         ingested = 0
         errors = 0
+        
+        batch_size = 100
+        vectors_batch = []
+        delay = 1.35  # Ensures max ~44 images (88 requests) per minute
+
+        self.stdout.write(f"   Processing sequentially with {delay}s delay to respect Gemini rate limits...")
 
         for i, image_path in enumerate(image_files, start=1):
             filename = image_path.name
+            caption_text = captions_map.get(filename, "No caption available")
 
             try:
-                # Get caption for this image
-                caption_text = captions_map.get(filename, "No caption available")
-
                 # a) Embed the image directly
                 img_vector = embed_image(str(image_path))
-                store_vector(
-                    id=f"img_{filename}",
-                    vector=img_vector,
-                    metadata={
+                img_record = {
+                    "id": f"img_{filename}",
+                    "values": img_vector,
+                    "metadata": {
                         "type": "image",
                         "source": "image",
                         "path": str(image_path),
                         "filename": filename,
                         "caption": caption_text,
                     },
-                )
+                }
 
                 # b) Embed the caption text
                 txt_vector = embed_text(caption_text)
-                store_vector(
-                    id=f"txt_{filename}",
-                    vector=txt_vector,
-                    metadata={
+                txt_record = {
+                    "id": f"txt_{filename}",
+                    "values": txt_vector,
+                    "metadata": {
                         "type": "image",
                         "source": "caption",
                         "path": str(image_path),
                         "filename": filename,
                         "caption": caption_text,
                     },
-                )
+                }
 
+                vectors_batch.extend([img_record, txt_record])
                 ingested += 1
-
-                # Progress reporting every 50 images
-                if i % 50 == 0 or i == target_count:
-                    self.stdout.write(
-                        self.style.SUCCESS(
-                            f"✓ {i}/{target_count} ingested..."
-                        )
-                    )
 
             except Exception as e:
                 errors += 1
@@ -144,8 +141,37 @@ class Command(BaseCommand):
                     self.style.WARNING(f"⚠ Error processing {filename}: {e}")
                 )
 
-            # Rate limiting: sleep between each image
-            time.sleep(0.5)
+            # If batch is full, upsert it
+            if len(vectors_batch) >= batch_size:
+                try:
+                    store_vectors(vectors_batch)
+                except Exception as e:
+                    errors += len(vectors_batch) // 2
+                    self.stderr.write(
+                        self.style.WARNING(f"⚠ Error uploading batch to Pinecone: {e}")
+                    )
+                vectors_batch = []
+
+            # Progress reporting every 10 images
+            if i % 10 == 0 or i == target_count:
+                self.stdout.write(
+                    self.style.SUCCESS(
+                        f"✓ {i}/{target_count} embedded..."
+                    )
+                )
+
+            # Strictly wait to stay under 50 images/minute (100 embed requests/minute)
+            time.sleep(delay)
+
+        # Flush any remaining vectors
+        if vectors_batch:
+            try:
+                store_vectors(vectors_batch)
+            except Exception as e:
+                errors += len(vectors_batch) // 2
+                self.stderr.write(
+                    self.style.WARNING(f"⚠ Error uploading final batch to Pinecone: {e}")
+                )
 
         # ── Step 4: Final summary ──────────────────────────────────────
         self.stdout.write("\n" + "=" * 50)

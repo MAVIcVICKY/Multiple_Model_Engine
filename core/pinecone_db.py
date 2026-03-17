@@ -52,6 +52,15 @@ def store_vector(id: str, vector: list, metadata: dict) -> None:
     )
 
 
+def store_vectors(vectors: list) -> None:
+    """
+    Store multiple vectors with metadata in Pinecone.
+
+    Args:
+        vectors: List of dictionaries, each containing 'id', 'values', and 'metadata'.
+    """
+    _get_index().upsert(vectors=vectors)
+
 def search_vectors(query_vector: list, top_k: int = 5, filter_type: str = None) -> list:
     """
     Search for similar vectors in Pinecone.
